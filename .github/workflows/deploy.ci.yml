@@ -1,0 +1,135 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ github.ref_name }}
+  DEPLOY_DIR: /root/srv/${{ github.event.repository.name }}/${{ github.ref_name }}
+  DEPLOY_FILE: docker-stack.yml
+  STACK_NAME: ${{ github.event.repository.name }}-${{ github.ref_name }}
+  PORT: 87
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Ensure deploy directory exists on server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: mkdir -p ${{ env.DEPLOY_DIR }}
+
+      - name: Copy docker stack to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ${{ env.DEPLOY_FILE }}
+          target: ${{ env.DEPLOY_DIR }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy stack
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            STACK_FILE="${{ env.DEPLOY_DIR }}/${{ env.DEPLOY_FILE }}"
+
+            export PORT=${{ env.PORT }}
+            export IMAGE_NAME=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+
+            echo "Deploying stack ${{ env.STACK_NAME }}"
+            cd "${{ env.DEPLOY_DIR }}"
+            envsubst < "$STACK_FILE" | docker stack deploy --resolve-image always --compose-file - ${{ env.STACK_NAME }}
+            echo "Deployment finished. Services:"
+            docker stack services ${{ env.STACK_NAME }}
+
+  health-check:
+    runs-on: ubuntu-latest
+    needs: deploy
+    outputs:
+      health_message: ${{ steps.health.outputs.health_message }}
+    steps:
+      - name: Wait for app to boot
+        run: sleep 15
+
+      - name: Health Check
+        id: health
+        run: |
+          URL="http://${{ secrets.SERVER_HOST }}:${{ env.PORT }}"
+
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+          HEALTH="❌ Health check failed"
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking $URL"
+            if curl -s -f --max-time 5 "$URL" > /dev/null; then
+              HEALTH="✅ Application is healthy!"
+              break
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 5
+          done
+
+          echo "health_message=$HEALTH" >> $GITHUB_OUTPUT
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, deploy, health-check]
+    if: always()
+    steps:
+      - name: Format status messages
+        id: format
+        run: |
+          if [ "${{ needs.build.result }}" = "success" ]; then
+            echo "build_message=✅ Success" >> $GITHUB_OUTPUT
+          else
+            echo "build_message=❌ Failed" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "deploy_message=✅ Success" >> $GITHUB_OUTPUT
+          else
+            echo "deploy_message=❌ Failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Alert to telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🧑‍💻 Username: ${{ github.actor }}
+            💬 Commit: ${{ github.event.commits[0].message }}
+            📦 Repository: ${{ github.repository }}
+            🌿 Branch: ${{ github.ref_name }}
+            🏗️ Build status: ${{ steps.format.outputs.build_message }}
+            🖥️ Deployment status: ${{ steps.format.outputs.deploy_message }}
+            🏥 Health status: ${{ needs.health-check.outputs.health_message }}
+            🔗 Changes: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
