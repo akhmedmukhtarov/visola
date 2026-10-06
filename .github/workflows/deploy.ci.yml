@@ -6,11 +6,10 @@ on:
       - main
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ github.ref_name }}
-  DEPLOY_DIR: /root/srv/${{ github.event.repository.name }}/${{ github.ref_name }}
-  DEPLOY_FILE: docker-stack.yml
-  STACK_NAME: ${{ github.event.repository.name }}-${{ github.ref_name }}
-  PORT: 87
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/visola:main
+  DEPLOY_DIR: /root/srv/visola
+  STACK_NAME: visola
+  APP_PORT: 88
 
 jobs:
   build:
@@ -27,31 +26,26 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          docker build -t ${{ env.IMAGE_NAME }} .
+          docker push ${{ env.IMAGE_NAME }}
 
-      - name: Ensure deploy directory exists on server
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: mkdir -p ${{ env.DEPLOY_DIR }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
+      # Creates DEPLOY_DIR on the server if it does not exist
       - name: Copy docker stack to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ${{ env.DEPLOY_FILE }}
+          source: docker-stack.yml
           target: ${{ env.DEPLOY_DIR }}
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
       - name: Deploy stack
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -59,77 +53,33 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            STACK_FILE="${{ env.DEPLOY_DIR }}/${{ env.DEPLOY_FILE }}"
-
-            export PORT=${{ env.PORT }}
-            export IMAGE_NAME=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-
-            echo "Deploying stack ${{ env.STACK_NAME }}"
-            cd "${{ env.DEPLOY_DIR }}"
-            envsubst < "$STACK_FILE" | docker stack deploy --resolve-image always --compose-file - ${{ env.STACK_NAME }}
-            echo "Deployment finished. Services:"
+            export PORT=${{ env.APP_PORT }}
+            export IMAGE_NAME=${{ env.IMAGE_NAME }}
+            envsubst < ${{ env.DEPLOY_DIR }}/docker-stack.yml | docker stack deploy --resolve-image always --compose-file - ${{ env.STACK_NAME }}
             docker stack services ${{ env.STACK_NAME }}
 
-  health-check:
-    runs-on: ubuntu-latest
-    needs: deploy
-    outputs:
-      health_message: ${{ steps.health.outputs.health_message }}
-    steps:
-      - name: Wait for app to boot
-        run: sleep 15
-
-      - name: Health Check
-        id: health
+      - name: Health check
         run: |
-          URL="http://${{ secrets.SERVER_HOST }}:${{ env.PORT }}"
-
-          MAX_ATTEMPTS=5
-          ATTEMPT=1
-          HEALTH="❌ Health check failed"
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking $URL"
-            if curl -s -f --max-time 5 "$URL" > /dev/null; then
-              HEALTH="✅ Application is healthy!"
-              break
-            fi
-            ATTEMPT=$((ATTEMPT + 1))
-            sleep 5
+          for i in 1 2 3 4 5 6; do
+            sleep 10
+            curl -s -f --max-time 5 "http://${{ secrets.SERVER_HOST }}:${{ env.APP_PORT }}" > /dev/null && exit 0
           done
-
-          echo "health_message=$HEALTH" >> $GITHUB_OUTPUT
+          echo "Site did not respond on port ${{ env.APP_PORT }}"
+          exit 1
 
   notify:
     runs-on: ubuntu-latest
-    needs: [build, deploy, health-check]
+    needs: [build, deploy]
     if: always()
     steps:
-      - name: Format status messages
-        id: format
-        run: |
-          if [ "${{ needs.build.result }}" = "success" ]; then
-            echo "build_message=✅ Success" >> $GITHUB_OUTPUT
-          else
-            echo "build_message=❌ Failed" >> $GITHUB_OUTPUT
-          fi
-
-          if [ "${{ needs.deploy.result }}" = "success" ]; then
-            echo "deploy_message=✅ Success" >> $GITHUB_OUTPUT
-          else
-            echo "deploy_message=❌ Failed" >> $GITHUB_OUTPUT
-          fi
-
       - name: Alert to telegram
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            🧑‍💻 Username: ${{ github.actor }}
-            💬 Commit: ${{ github.event.commits[0].message }}
-            📦 Repository: ${{ github.repository }}
-            🌿 Branch: ${{ github.ref_name }}
-            🏗️ Build status: ${{ steps.format.outputs.build_message }}
-            🖥️ Deployment status: ${{ steps.format.outputs.deploy_message }}
-            🏥 Health status: ${{ needs.health-check.outputs.health_message }}
-            🔗 Changes: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            📦 ${{ github.repository }}
+            💬 ${{ github.event.commits[0].message }}
+            🏗️ Build: ${{ needs.build.result }}
+            🖥️ Deploy: ${{ needs.deploy.result }}
+            🔗 https://github.com/${{ github.repository }}/commit/${{ github.sha }}
