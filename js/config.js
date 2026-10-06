@@ -16,7 +16,7 @@ window.SITE_CONFIG = {
   // Пока price равен null, вместо цены показывается «по запросу».
   prices: {
     currency: "uzs",
-    consultation: { price: 1000000, duration: 60  },
+    consultation: { price: 300000, duration: 60  },
     lesson: { price: 200000, duration: 60 },
   },
 
