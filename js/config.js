@@ -21,15 +21,16 @@ window.SITE_CONFIG = {
   },
 
   // Картинки. Положите файлы в папку assets/ и поменяйте пути.
+  // Формат — JPG или WebP: HEIC с айфона открывается не во всех браузерах и не индексируется поиском.
   images: {
-    portrait: { src: "assets/IMG_3086.HEIC", alt: "Висола Аблаева" }, // 4:5
-    atWork: { src: "assets/IMG_5914.HEIC", alt: "Висола Аблаева на занятии" }, // 1:1
+    portrait: { src: "assets/logoped-visola-ablaeva.jpg", alt: "Висола Аблаева — логопед-дефектолог в Ташкенте" }, // 4:5
+    atWork: { src: "assets/logoped-zanyatie-s-rebenkom.jpg", alt: "Логопед Висола Аблаева на занятии с ребёнком" }, // 1:1
     // Блок «Наше пространство», формат 3:4. Можно добавить или убрать фото.
     space: [
-      { src: "assets/space-1.svg", alt: "Кабинет" },
-      { src: "assets/space-2.svg", alt: "Пособия и материалы" },
-      { src: "assets/space-3.svg", alt: "Фрагмент занятия" },
-      { src: "assets/space-4.svg", alt: "Игровая зона" },
+      { src: "assets/kabinet-logopeda-tashkent.jpg", alt: "Кабинет логопеда в Ташкенте" },
+      { src: "assets/zanyatie-melkaya-motorika.jpg", alt: "Занятие на развитие мелкой моторики" },
+      { src: "assets/posobiya-logopeda.jpg", alt: "Пособия и музыкальные инструменты для занятий" },
+      { src: "assets/zanyatie-s-kartochkami.jpg", alt: "Ребёнок на логопедическом занятии с карточками" },
     ],
   },
 
