@@ -224,6 +224,7 @@
       <h2 class="h2">Маленькие большие шаги</h2>
     </div>
     <div class="reviews-grid" data-reviews></div>
+    <button class="btn btn-ghost reviews-more" type="button" data-reviews-more hidden>Показать ещё</button>
   </div>
 </section>
 
@@ -234,6 +235,16 @@
     <figcaption></figcaption>
   </figure>
 </template>
+
+<template id="review-shot-template">
+  <figure class="review review-shot">
+    <a target="_blank" rel="noopener"><img alt="" loading="lazy"></a>
+  </figure>
+</template>
+
+<dialog class="lightbox" data-lightbox aria-label="Отзыв крупно">
+  <img alt="">
+</dialog>
 
 <section id="contact" class="container">
   <div class="cta">

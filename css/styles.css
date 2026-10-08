@@ -505,6 +505,24 @@ section[id] { scroll-margin-top: 80px; }
   font-weight: 500;
 }
 .review figcaption { font-size: 14px; color: var(--ink-muted); }
+.reviews-grid { align-items: start; }
+.review-shot { padding: 0; overflow: hidden; border: 1px solid var(--hairline); }
+.review-shot a { display: block; cursor: zoom-in; }
+.review-shot img { width: 100%; height: auto; }
+.reviews-more { align-self: center; }
+button.btn { font: inherit; font-weight: 600; background: transparent; cursor: pointer; }
+
+.lightbox {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: min(92vw, 560px);
+  max-height: 92vh;
+  outline: none;
+  cursor: zoom-out;
+}
+.lightbox::backdrop { background: rgba(46, 39, 35, 0.8); }
+.lightbox img { max-height: 92vh; width: auto; border-radius: 16px; }
 
 /* Contact */
 

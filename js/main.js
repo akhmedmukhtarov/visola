@@ -67,16 +67,51 @@
 
   // Отзывы
   const reviewsGrid = document.querySelector("[data-reviews]");
+  const reviewsMore = document.querySelector("[data-reviews-more]");
+  const lightbox = document.querySelector("[data-lightbox]");
   if (reviews.length === 0) {
     all("[data-reviews-section]").forEach((el) => (el.hidden = true));
   } else if (reviewsGrid) {
     const template = document.getElementById("review-template");
-    reviews.forEach((review) => {
-      const node = template.content.cloneNode(true);
-      node.querySelector("blockquote").textContent = review.text;
-      node.querySelector("figcaption").textContent = review.author;
+    const shotTemplate = document.getElementById("review-shot-template");
+    const step = Math.max(1, Number(config.reviewsVisible) || 3);
+    reviews.forEach((review, index) => {
+      let node;
+      if (review.image) {
+        // Скриншот переписки, по клику открывается крупно
+        node = shotTemplate.content.cloneNode(true);
+        const link = node.querySelector("a");
+        const img = node.querySelector("img");
+        link.href = review.image;
+        img.src = review.image;
+        img.alt = review.alt || "Отзыв родителей";
+        link.addEventListener("click", (event) => {
+          if (!lightbox || !lightbox.showModal) return;
+          event.preventDefault();
+          const full = lightbox.querySelector("img");
+          full.src = review.image;
+          full.alt = img.alt;
+          lightbox.showModal();
+        });
+      } else {
+        node = template.content.cloneNode(true);
+        node.querySelector("blockquote").textContent = review.text;
+        node.querySelector("figcaption").textContent = review.author;
+      }
+      node.querySelector(".review").hidden = index >= step;
       reviewsGrid.append(node);
     });
+
+    // «Показать ещё» открывает следующую порцию
+    if (reviewsMore && reviews.length > step) {
+      reviewsMore.hidden = false;
+      reviewsMore.addEventListener("click", () => {
+        const rest = reviewsGrid.querySelectorAll(".review[hidden]");
+        Array.from(rest).slice(0, step).forEach((el) => (el.hidden = false));
+        if (rest.length <= step) reviewsMore.hidden = true;
+      });
+    }
+    if (lightbox) lightbox.addEventListener("click", () => lightbox.close());
   }
 
   // Подвал
