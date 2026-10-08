@@ -16,8 +16,8 @@ window.SITE_CONFIG = {
   // Пока price равен null, вместо цены показывается «по запросу».
   prices: {
     currency: "uzs",
-    consultation: { price: 300000, duration: 60  },
-    lesson: { price: 200000, duration: 60 },
+    consultation: { price: 300000, duration: 50  },
+    lesson: { price: 200000, duration: 50 },
   },
 
   // Картинки. Положите файлы в папку assets/ и поменяйте пути.
