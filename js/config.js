@@ -46,7 +46,7 @@ window.SITE_CONFIG = {
     { image: "assets/reviews/review2.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 2" },
     { image: "assets/reviews/review3.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 3" },
     { image: "assets/reviews/review4.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 4" },
-    { image: "assets/reviews/review5.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 5" },
+    { image: "assets/reviews/review5.jpeg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 5" },
     { image: "assets/reviews/review6.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 6" },
     { image: "assets/reviews/review7.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 7" },
     { image: "assets/reviews/review8.jpg", alt: "Отзыв родителей о занятиях с логопедом Висолой Аблаевой, скриншот 8" },
